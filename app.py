@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import html
+import hmac
 import random
 import uuid
 from dataclasses import dataclass
@@ -26,6 +27,7 @@ USERS = "users"
 REACTIONS = "reactions"
 MATCHES = "matches"
 DAILY_USAGE = "daily_like_usage"
+AUTH_FALLBACK_USERS = "auth_fallback_users"
 
 st.set_page_config(page_title=APP_NAME, page_icon="💘", layout="wide")
 
@@ -197,11 +199,11 @@ def inject_css() -> None:
             align-items: center;
             justify-content: space-between;
             gap: 16px;
-            background: rgba(255, 250, 245, 0.68);
+            background: linear-gradient(145deg, rgba(255,250,245,0.84), rgba(255,240,232,0.58));
             border: 1px solid rgba(185, 130, 85, 0.18);
-            border-radius: 28px;
-            padding: 14px 18px;
-            margin-bottom: 20px;
+            border-radius: 30px;
+            padding: 13px 18px;
+            margin-bottom: 16px;
             box-shadow: 0 18px 46px rgba(145, 82, 66, 0.10);
             backdrop-filter: blur(18px);
         }
@@ -283,14 +285,14 @@ def inject_css() -> None:
 
         .auth-hero {
             min-height: 575px;
-            padding: 42px;
+            padding: 36px 40px;
             position: relative;
             overflow: hidden;
         }
 
         .auth-panel {
             min-height: 0;
-            padding: 26px 28px 28px;
+            padding: 18px 26px 26px;
         }
 
         .auth-hero:before {
@@ -394,6 +396,43 @@ def inject_css() -> None:
             box-shadow: 0 18px 38px rgba(66, 47, 42, 0.16);
         }
 
+        .mini-phone {
+            max-width: 378px;
+            background: linear-gradient(145deg, rgba(255,255,255,0.74), rgba(255,246,239,0.50));
+            border: 1px solid rgba(185, 130, 85, 0.14);
+            border-radius: 34px;
+            padding: 14px;
+            box-shadow: 0 26px 60px rgba(145, 82, 66, 0.14);
+            margin-top: 28px;
+        }
+
+        .mini-photo {
+            height: 278px;
+            border-radius: 26px;
+            background:
+                linear-gradient(135deg, rgba(217,105,112,0.14), rgba(185,130,85,0.12)),
+                url('https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .mini-info {
+            padding: 16px 10px 4px;
+        }
+
+        .mini-name {
+            font-size: 22px;
+            font-weight: 900;
+            color: var(--ink);
+        }
+
+        .mini-text {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 5px;
+        }
+
+
         .showcase-title {
             font-size: 21px;
             font-weight: 900;
@@ -408,32 +447,21 @@ def inject_css() -> None:
         }
 
         .auth-title-row {
-            display: flex;
-            gap: 14px;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .auth-title-row img {
-            width: 58px;
-            height: 58px;
-            border-radius: 50%;
-            object-fit: cover;
-            box-shadow: 0 12px 28px rgba(95, 63, 53, 0.14);
+            margin-bottom: 8px;
         }
 
         .auth-title {
-            font-size: 25px;
+            font-size: 22px;
             font-weight: 900;
             color: var(--ink);
             margin: 0;
         }
 
         .auth-subtitle {
-            font-size: 13px;
+            font-size: 12.5px;
             color: var(--muted);
-            line-height: 1.48;
-            margin: 2px 0 0;
+            line-height: 1.42;
+            margin: 1px 0 0;
         }
 
         div[data-baseweb="tab-list"] {
@@ -490,6 +518,26 @@ def inject_css() -> None:
         textarea::placeholder {
             color: #a3938e !important;
             -webkit-text-fill-color: #a3938e !important;
+        }
+
+        div[data-baseweb="popover"],
+        ul[role="listbox"],
+        div[role="listbox"] {
+            background: #fffdfa !important;
+            color: var(--ink) !important;
+            border: 1px solid rgba(185, 130, 85, 0.18) !important;
+        }
+
+        li[role="option"],
+        div[role="option"],
+        [data-baseweb="menu"] * {
+            color: var(--ink) !important;
+            -webkit-text-fill-color: var(--ink) !important;
+        }
+
+        li[role="option"]:hover,
+        div[role="option"]:hover {
+            background: rgba(255, 240, 232, 0.95) !important;
         }
 
         label,
@@ -709,7 +757,7 @@ def translate_auth_error(message: str) -> str:
         "USER_DISABLED": "Bu kullanıcı hesabı devre dışı bırakılmış.",
         "MISSING_PASSWORD": "Şifre alanı boş bırakılamaz.",
         "INVALID_EMAIL": "E-posta adresi geçerli değil.",
-        "CONFIGURATION_NOT_FOUND": "Firebase Authentication yapılandırması bulunamadı. Firebase Console > Authentication > Sign-in method bölümünden Email/Password sağlayıcısını etkinleştirin ve [firebase_web] api_key değerinin aynı projeye ait olduğundan emin olun.",
+        "CONFIGURATION_NOT_FOUND": "Firebase Authentication Web API yapılandırması bulunamadı. LUNAMATCH geçici olarak Firestore tabanlı MVP girişine dönecek. Kalıcı çözüm için Firebase Console > Authentication > Sign-in method > Email/Password sağlayıcısını etkinleştirin ve [firebase_web] api_key değerinin aynı projeye ait olduğundan emin olun.",
         "PROJECT_NOT_FOUND": "Firebase projesi bulunamadı. Web API Key ve service account bilgilerinin aynı Firebase projesine ait olduğundan emin olun.",
         "API_KEY_INVALID": "Firebase Web API Key geçersiz görünüyor. Firebase Project settings > General > Web app config içindeki apiKey değerini kullanın.",
     }
@@ -792,6 +840,89 @@ def is_admin_email(email: str) -> bool:
     return email.lower() in admin_email_list()
 
 
+class FirebaseAuthConfigurationError(RuntimeError):
+    """Raised when Firebase Web Auth is not configured for the current API key/project."""
+
+
+def normalized_email(email: str) -> str:
+    return email.strip().lower()
+
+
+def fallback_uid_for_email(email: str) -> str:
+    digest = hashlib.sha256(normalized_email(email).encode("utf-8")).hexdigest()
+    return f"fs_{digest[:32]}"
+
+
+def hash_password(password: str, salt: str | None = None) -> tuple[str, str]:
+    salt = salt or uuid.uuid4().hex
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        200_000,
+    ).hex()
+    return salt, digest
+
+
+def fallback_register_user(email: str, password: str) -> dict[str, Any]:
+    email_norm = normalized_email(email)
+    uid = fallback_uid_for_email(email_norm)
+    ref = db().collection(AUTH_FALLBACK_USERS).document(uid)
+
+    if ref.get().exists:
+        raise RuntimeError("Bu e-posta adresiyle daha önce üyelik oluşturulmuş.")
+
+    salt, digest = hash_password(password)
+    ref.set(
+        {
+            "uid": uid,
+            "email": email_norm,
+            "password_salt": salt,
+            "password_hash": digest,
+            "created_at": firestore.SERVER_TIMESTAMP,
+            "updated_at": firestore.SERVER_TIMESTAMP,
+            "auth_mode": "firestore_mvp_fallback",
+        },
+        merge=True,
+    )
+    return {"localId": uid, "email": email_norm, "fallbackAuth": True}
+
+
+def fallback_login_user(email: str, password: str) -> dict[str, Any]:
+    email_norm = normalized_email(email)
+    uid = fallback_uid_for_email(email_norm)
+    doc = db().collection(AUTH_FALLBACK_USERS).document(uid).get()
+
+    if not doc.exists:
+        raise RuntimeError(
+            "Bu e-posta için LUNAMATCH hesabı bulunamadı. Firebase Authentication ayarları düzeltilene kadar önce Üye Ol sekmesinden kayıt oluşturun."
+        )
+
+    data = doc.to_dict() or {}
+    salt = data.get("password_salt", "")
+    expected = data.get("password_hash", "")
+    _, actual = hash_password(password, salt)
+
+    if not expected or not hmac.compare_digest(expected, actual):
+        raise RuntimeError("E-posta veya şifre hatalı.")
+
+    return {"localId": uid, "email": email_norm, "fallbackAuth": True}
+
+
+def ensure_user_profile_after_auth(uid: str, email: str) -> dict[str, Any]:
+    should_be_admin = is_admin_email(email)
+    profile = get_user(uid)
+
+    if not profile:
+        create_auth_user_profile(uid, email, "admin" if should_be_admin else "user")
+        profile = get_user(uid)
+    elif should_be_admin and profile.get("role") != "admin":
+        set_user_role(uid, "admin")
+        profile = get_user(uid)
+
+    return profile or {"id": uid, "uid": uid, "email": email, "role": "admin" if should_be_admin else "user"}
+
+
 def firebase_auth_request(endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
     url = f"{FIREBASE_AUTH_BASE}/{endpoint}?key={firebase_web_api_key()}"
     try:
@@ -802,26 +933,41 @@ def firebase_auth_request(endpoint: str, payload: dict[str, Any]) -> dict[str, A
 
     if response.status_code != 200:
         message = data.get("error", {}).get("message", "Firebase Auth hatası.")
-        raise RuntimeError(translate_auth_error(message))
+        translated = translate_auth_error(message)
+        if message == "CONFIGURATION_NOT_FOUND":
+            raise FirebaseAuthConfigurationError(translated)
+        raise RuntimeError(translated)
     return data
 
 
 def register_user(email: str, password: str) -> dict[str, Any]:
-    return firebase_auth_request(
-        "accounts:signUp",
-        {"email": email, "password": password, "returnSecureToken": True},
-    )
+    try:
+        return firebase_auth_request(
+            "accounts:signUp",
+            {"email": normalized_email(email), "password": password, "returnSecureToken": True},
+        )
+    except FirebaseAuthConfigurationError:
+        return fallback_register_user(email, password)
 
 
 def login_user(email: str, password: str) -> dict[str, Any]:
-    return firebase_auth_request(
-        "accounts:signInWithPassword",
-        {"email": email, "password": password, "returnSecureToken": True},
-    )
+    try:
+        return firebase_auth_request(
+            "accounts:signInWithPassword",
+            {"email": normalized_email(email), "password": password, "returnSecureToken": True},
+        )
+    except FirebaseAuthConfigurationError:
+        return fallback_login_user(email, password)
 
 
 def send_password_reset(email: str) -> None:
-    firebase_auth_request("accounts:sendOobCode", {"requestType": "PASSWORD_RESET", "email": email})
+    try:
+        firebase_auth_request("accounts:sendOobCode", {"requestType": "PASSWORD_RESET", "email": normalized_email(email)})
+    except FirebaseAuthConfigurationError as exc:
+        raise RuntimeError(
+            "Şifre yenileme e-postası için Firebase Authentication Web yapılandırması gereklidir. "
+            "Firebase Console > Authentication > Sign-in method bölümünde Email/Password sağlayıcısını etkinleştirin ve doğru Web API Key'i girin."
+        ) from exc
 
 
 def create_auth_user_profile(uid: str, email: str, role: str = "user") -> None:
@@ -1287,7 +1433,6 @@ def auth_page() -> None:
         st.markdown(
             f"""
             <div class="auth-hero">
-                <div class="auth-logo"><img src="{LOGO_DATA_URI}" alt="LUNAMATCH logo"></div>
                 <div class="hero-badge">💘 Yeni nesil romantik eşleşme deneyimi</div>
                 <div class="hero-title">Aşkı biraz daha <span class="hero-gradient">uyumlu</span> hale getir.</div>
                 <div class="hero-desc">
@@ -1301,14 +1446,11 @@ def auth_page() -> None:
                     <div class="hero-pill">📍 Yakınındaki Profiller</div>
                     <div class="hero-pill">🔮 Romantik Mesajlar</div>
                 </div>
-                <div class="brand-showcase">
-                    <img src="{LOGO_DATA_URI}" alt="LUNAMATCH logo">
-                    <div>
-                        <div class="showcase-title">Logo teması uygulamaya işlendi</div>
-                        <div class="showcase-text">
-                            Bakır, krem ve romantik pembe tonları logodaki premium astro-aşk hissine göre düzenlendi.
-                            Alanlar ayrı kutular gibi değil, yumuşak cam paneller olarak tasarıma gömüldü.
-                        </div>
+                <div class="mini-phone">
+                    <div class="mini-photo"></div>
+                    <div class="mini-info">
+                        <div class="mini-name">Zeynep, 28</div>
+                        <div class="mini-text">☀️ Terazi · 🌙 Balık · %87 LUNAMATCH uyumu</div>
                     </div>
                 </div>
             </div>
@@ -1321,11 +1463,8 @@ def auth_page() -> None:
             f"""
             <div class="auth-panel">
                 <div class="auth-title-row">
-                    <img src="{LOGO_DATA_URI}" alt="LUNAMATCH logo">
-                    <div>
-                        <div class="auth-title">Hemen başla</div>
-                        <div class="auth-subtitle">Giriş yap veya LUNAMATCH’e katıl.</div>
-                    </div>
+                    <div class="auth-title">Hemen başla</div>
+                    <div class="auth-subtitle">Giriş yap veya LUNAMATCH’e katıl.</div>
                 </div>
             """,
             unsafe_allow_html=True,
@@ -1341,16 +1480,7 @@ def auth_page() -> None:
                 try:
                     data = login_user(email, password)
                     uid = data["localId"]
-                    profile = get_user(uid)
-                    should_be_admin = is_admin_email(email)
-
-                    if not profile:
-                        create_auth_user_profile(uid, email, "admin" if should_be_admin else "user")
-                        profile = get_user(uid)
-                    elif should_be_admin and profile.get("role") != "admin":
-                        set_user_role(uid, "admin")
-                        profile = get_user(uid)
-
+                    profile = ensure_user_profile_after_auth(uid, email)
                     st.session_state["user"] = profile
                     st.success("Giriş başarılı.")
                     st.rerun()
@@ -1382,9 +1512,7 @@ def auth_page() -> None:
                     try:
                         data = register_user(email, password)
                         uid = data["localId"]
-                        role = "admin" if is_admin_email(email) else "user"
-                        create_auth_user_profile(uid, email, role)
-                        profile = get_user(uid)
+                        profile = ensure_user_profile_after_auth(uid, email)
                         st.session_state["user"] = profile
                         st.session_state["nav_override"] = "👤 Profilim"
                         st.success("Üyelik oluşturuldu. Şimdi profilini parlatma zamanı.")
